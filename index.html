@@ -1,32 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Compressor</title>
+  <meta charset="UTF-8" />
+  <title>Image & Video Compressor</title>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@latest/dist/browser-image-compression.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 </head>
 <body>
-  <input type="file" id="fileInput" multiple />
+  <h2>Upload Foto & Video (Kompresi di Browser)</h2>
+  <input type="file" id="fileInput" multiple accept="image/*,video/*" />
   <div id="output"></div>
 
   <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
     document.getElementById('fileInput').addEventListener('change', async (event) => {
       const files = event.target.files;
-      const compressedFiles = [];
+      const outputDiv = document.getElementById('output');
+      outputDiv.innerHTML = '⏳ Processing...<br>';
 
       for (let file of files) {
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1280,
-          useWebWorker: true
-        };
-        const compressedFile = await imageCompression(file, options);
-        compressedFiles.push(compressedFile);
+        const fileType = file.type;
 
-        // Display result
-        const url = URL.createObjectURL(compressedFile);
-        document.getElementById('output').innerHTML += `<p>${compressedFile.name} - ${Math.round(compressedFile.size / 1024)} KB</p><img src="${url}" width="100"/>`;
-        
-        // Kirim ke server, atau nanti diambil dari iframe oleh Appsmith
+        if (fileType.startsWith('image/')) {
+          // Gambar - kompres pakai browser-image-compression
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1280,
+            useWebWorker: true
+          };
+          const compressedFile = await imageCompression(file, options);
+          const url = URL.createObjectURL(compressedFile);
+          outputDiv.innerHTML += `<p>🖼️ <strong>${compressedFile.name}</strong> - ${Math.round(compressedFile.size / 1024)} KB</p>
+                                  <img src="${url}" width="160"/><hr>`;
+        } else if (fileType.startsWith('video/')) {
+          // Video - kompres pakai ffmpeg.js
+          if (!ffmpeg.isLoaded()) await ffmpeg.load();
+
+          const inputFileName = file.name;
+          const outputFileName = 'output.mp4';
+
+          ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
+
+          await ffmpeg.run('-i', inputFileName, '-vcodec', 'libx264', '-crf', '28', outputFileName);
+
+          const data = ffmpeg.FS('readFile', outputFileName);
+          const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
+          const url = URL.createObjectURL(videoBlob);
+
+          outputDiv.innerHTML += `<p>🎬 <strong>${file.name}</strong> → <strong>${outputFileName}</strong> - ${Math.round(videoBlob.size / 1024)} KB</p>
+                                  <video src="${url}" controls width="300"></video><hr>`;
+
+          // Bersihkan FS
+          ffmpeg.FS('unlink', inputFileName);
+          ffmpeg.FS('unlink', outputFileName);
+        } else {
+          outputDiv.innerHTML += `<p>❌ Unsupported file type: ${file.name}</p>`;
+        }
       }
     });
   </script>
