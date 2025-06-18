@@ -2,24 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Upload & Compress Foto dan Video</title>
+  <title>Upload Gambar & Video</title>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@latest/dist/browser-image-compression.js"></script>
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
-    video, img { margin: 10px 0; display: block; }
+    img, video { margin: 10px 0; display: block; max-width: 100%; height: auto; }
     hr { margin: 20px 0; }
   </style>
 </head>
 <body>
-  <h2>Upload & Compress</h2>
+  <h2>Upload Gambar & Video</h2>
   <input type="file" id="fileInput" multiple accept="image/*,video/*" />
   <div id="output"></div>
 
   <script>
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
-
     document.getElementById('fileInput').addEventListener('change', async (event) => {
       const files = event.target.files;
       const outputDiv = document.getElementById('output');
@@ -27,60 +23,44 @@
 
       for (let file of files) {
         const fileType = file.type;
-        outputDiv.innerHTML += `<p>🔄 Processing: ${file.name}</p>`;
+        const fileSizeKB = file.size / 1024;
 
         if (fileType.startsWith('image/')) {
-          // KOMPREST GAMBAR
+          // GAMBAR
           try {
-            const options = {
-              maxSizeMB: 1,
-              maxWidthOrHeight: 1280,
-              useWebWorker: true
-            };
-            const compressedFile = await imageCompression(file, options);
-            const url = URL.createObjectURL(compressedFile);
+            if (fileSizeKB <= 600) {
+              // Tidak perlu dikompres
+              const url = URL.createObjectURL(file);
+              outputDiv.innerHTML += `
+                <p>✅ Gambar tanpa kompres: ${file.name} - ${Math.round(fileSizeKB)} KB</p>
+                <img src="${url}" alt="Image"><hr>`;
+            } else {
+              // Kompres gambar
+              const options = {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 1280,
+                useWebWorker: true
+              };
+              const compressedFile = await imageCompression(file, options);
+              const url = URL.createObjectURL(compressedFile);
 
-            outputDiv.innerHTML += `<p>✅ Gambar dikompres: ${compressedFile.name} - ${Math.round(compressedFile.size / 1024)} KB</p>
-                                    <img src="${url}" width="200"><hr>`;
+              outputDiv.innerHTML += `
+                <p>✅ Gambar dikompres: ${compressedFile.name} - ${Math.round(compressedFile.size / 1024)} KB</p>
+                <img src="${url}" alt="Compressed Image"><hr>`;
+            }
           } catch (err) {
-            outputDiv.innerHTML += `<p style="color:red;">❌ Gagal kompres gambar: ${err.message}</p>`;
+            outputDiv.innerHTML += `<p style="color:red;">❌ Gagal proses gambar: ${err.message}</p>`;
             console.error('Image error:', err);
           }
 
         } else if (fileType.startsWith('video/')) {
-          // KOMPREST VIDEO
-          try {
-            if (!ffmpeg.isLoaded()) {
-              outputDiv.innerHTML += `<p>⏳ Loading video compressor...</p>`;
-              await ffmpeg.load();
-            }
-
-            const inputFileName = file.name;
-            const outputFileName = 'compressed.mp4';
-
-            outputDiv.innerHTML += `<p>📥 Menulis video ke memori...</p>`;
-            ffmpeg.FS('writeFile', inputFileName, await fetchFile(file));
-
-            outputDiv.innerHTML += `<p>⚙️ Kompresi video...</p>`;
-            await ffmpeg.run('-i', inputFileName, '-vcodec', 'libx264', '-crf', '28', outputFileName);
-
-            outputDiv.innerHTML += `<p>📤 Mengambil hasil kompres...</p>`;
-            const data = ffmpeg.FS('readFile', outputFileName);
-            const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
-            const url = URL.createObjectURL(videoBlob);
-
-            outputDiv.innerHTML += `<p>✅ Video dikompres: ${outputFileName} - ${Math.round(videoBlob.size / 1024)} KB</p>
-                                    <video src="${url}" controls width="300"></video><hr>`;
-
-            // Bersihkan
-            ffmpeg.FS('unlink', inputFileName);
-            ffmpeg.FS('unlink', outputFileName);
-          } catch (err) {
-            outputDiv.innerHTML += `<p style="color:red;">❌ Gagal kompres video: ${err.message}</p>`;
-            console.error('Video error:', err);
-          }
+          // VIDEO (tidak dikompres)
+          const url = URL.createObjectURL(file);
+          outputDiv.innerHTML += `
+            <p>🎬 Video diterima: ${file.name} - ${Math.round(fileSizeKB)} KB</p>
+            <video src="${url}" controls width="300"></video><hr>`;
         } else {
-          outputDiv.innerHTML += `<p style="color:orange;">⚠️ Tipe file tidak didukung: ${file.name}</p>`;
+          outputDiv.innerHTML += `<p style="color:orange;">⚠️ File tidak didukung: ${file.name}</p>`;
         }
       }
 
