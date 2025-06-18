@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Upload Gambar & Video</title>
+  <title>Upload Gambar & Video (dengan batasan)</title>
   <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@latest/dist/browser-image-compression.js"></script>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
@@ -24,18 +24,17 @@
       for (let file of files) {
         const fileType = file.type;
         const fileSizeKB = file.size / 1024;
+        const fileSizeMB = file.size / (1024 * 1024);
 
         if (fileType.startsWith('image/')) {
           // GAMBAR
           try {
             if (fileSizeKB <= 600) {
-              // Tidak perlu dikompres
               const url = URL.createObjectURL(file);
               outputDiv.innerHTML += `
                 <p>✅ Gambar tanpa kompres: ${file.name} - ${Math.round(fileSizeKB)} KB</p>
                 <img src="${url}" alt="Image"><hr>`;
             } else {
-              // Kompres gambar
               const options = {
                 maxSizeMB: 1,
                 maxWidthOrHeight: 1280,
@@ -54,7 +53,12 @@
           }
 
         } else if (fileType.startsWith('video/')) {
-          // VIDEO (tidak dikompres)
+          // VIDEO
+          if (fileSizeMB > 10) {
+            outputDiv.innerHTML += `<p style="color:red;">❌ Video terlalu besar: ${file.name} (${fileSizeMB.toFixed(2)} MB) — Maks. 10 MB</p><hr>`;
+            continue;
+          }
+
           const url = URL.createObjectURL(file);
           outputDiv.innerHTML += `
             <p>🎬 Video diterima: ${file.name} - ${Math.round(fileSizeKB)} KB</p>
