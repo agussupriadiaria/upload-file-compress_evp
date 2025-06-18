@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Compressor</title>
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@latest/dist/browser-image-compression.js"></script>
+</head>
+<body>
+  <input type="file" id="fileInput" multiple />
+  <div id="output"></div>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', async (event) => {
+      const files = event.target.files;
+      const compressedFiles = [];
+
+      for (let file of files) {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1280,
+          useWebWorker: true
+        };
+        const compressedFile = await imageCompression(file, options);
+        compressedFiles.push(compressedFile);
+
+        // Display result
+        const url = URL.createObjectURL(compressedFile);
+        document.getElementById('output').innerHTML += `<p>${compressedFile.name} - ${Math.round(compressedFile.size / 1024)} KB</p><img src="${url}" width="100"/>`;
+        
+        // Kirim ke server, atau nanti diambil dari iframe oleh Appsmith
+      }
+    });
+  </script>
+</body>
+</html>
